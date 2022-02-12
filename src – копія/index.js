@@ -3,8 +3,6 @@ import countryInfoMarkup from './templates/country-info-markup.hbs';
 import './css/styles.css';
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
 import debounce from 'lodash.debounce';
-import render from './js-components/render-card';
-import Countries from './js-components/search-service';
 
 const refs = {
   input: document.querySelector('#search-box'),
@@ -12,44 +10,52 @@ const refs = {
   countryInfo: document.querySelector('.country-info'),
 };
 
-const dataToRender = {
-  list: refs.countryList,
-  properties: refs.countryInfo,
-  listMarkup: renderMarkup,
-  propertiesMarkup: countryInfoMarkup,
-};
-
 const DEBOUNCE_DELAY = 300;
+const url = 'https://restcountries.com/v3.1/name';
 
 function onTextInput(e) {
-  const value = e.target.value.trim();
+  const value = e.target.value;
 
-  dataToRender.list.innerHTML = '';
-  dataToRender.properties.innerHTML = '';
+  refs.countryList.innerHTML = '';
 
   if (!value) {
     return;
   }
 
-  const countries = new Countries(value);
+  getCounrty(value);
 
-  countries
-    .getCounrty()
+  return e.target.value;
+}
+
+function getCounrty(countryName) {
+  fetch(`${url}/${countryName}?fields=name,capital,population,flags,languages`)
+    .then(response => {
+      if (response.status === 404) {
+        throw new Error();
+      }
+
+      return response.json();
+    })
+
     .then(response => {
       if (response.length > 10) {
         return Notify.info('Too many matches found. Please enter a more specific name.');
       }
 
-      dataToRender.data = response;
-
-      render(dataToRender);
+      renderCard(response);
     })
     .catch(() => Notify.failure('Oops, there is no country with that name'));
 }
 
-refs.input.addEventListener('input', debounce(onTextInput, DEBOUNCE_DELAY));
+function renderCard(data) {
+  refs.countryList.insertAdjacentHTML('beforeend', renderMarkup(data));
 
-// ===================================================================
+  if (data.length === 1) {
+    refs.countryList.insertAdjacentHTML('beforeend', countryInfoMarkup(data));
+  }
+}
+
+refs.input.addEventListener('input', debounce(onTextInput, DEBOUNCE_DELAY));
 
 Notify.init({
   width: '425px',
